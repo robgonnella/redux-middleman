@@ -1,4 +1,4 @@
 {
   "extends": "../configs/base",
-  "compilerOptions": {}
+  "compilerOptions": { "module": "es6" }
 }

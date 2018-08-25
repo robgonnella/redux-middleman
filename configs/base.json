@@ -4,10 +4,9 @@
         "noImplicitReturns": true,
         "strict": true,
         "noUnusedLocals": true,
-        "lib": ["es5", "es6"],
+        "lib": ["es7"],
         "target": "es6",
         "module": "commonjs",
-        "moduleResolution": "node",
-        "outDir": "lib"
+        "moduleResolution": "node"
     }
 }

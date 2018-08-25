@@ -6,10 +6,12 @@ import { ReduxMiddleman } from '../src';
 
 const spy0: SinonSpy = spy();
 const spy1: SinonSpy = spy();
+const spy2: SinonSpy = spy();
 
 function resetSpyHistory() {
   spy0.resetHistory();
   spy1.resetHistory();
+  spy2.resetHistory();
 }
 
 let middleman: ReduxMiddleman<Util.State>;
@@ -22,147 +24,118 @@ function createMiddleware(): Middleware {
 
 
 describe('Redux Middleman', function() {
+  this.timeout(10000);
 
   beforeEach(function() {
     resetSpyHistory();
-    if (middleman) { middleman.removeAll(); }
+    if (middleman) { middleman.removeAllListeners(); }
     const middleware: Middleware = createMiddleware();
     store = Util.setUpStore(middleware);
   });
 
   it(
-    'calls registered callback with action, currState, and nextState',
-    async () => {
+    'calls registered callback with action, currState, and dispatch',
+    () => {
       middleman.on(Util.ACTION0, spy0);
       const action0 = Util.createAction(Util.ACTION0, 'data-zero');
-      await store.dispatch(action0);
+      store.dispatch(action0);
       chai.expect(spy0.callCount).to.equal(1);
-      chai.expect(spy0.lastCall.args[0]).to.deep.equal(action0);
-      chai.expect(spy0.lastCall.args[1]).to.deep.equal(Util.initialState);
-      chai.expect(spy0.lastCall.args[2]).to.deep.equal({ data: 'data-zero' });
+      const returnData = spy0.lastCall.args[0];
+      chai.expect(returnData.action).to.deep.equal(action0);
+      chai.expect(returnData.currentState).to.deep.equal(Util.initialState);
+      chai.expect(typeof returnData.dispatch).to.equal('function');
     }
   );
 
   it(
     'calls registered callback multiple times',
-    async () => {
+    () => {
       middleman.on(Util.ACTION0, spy0);
       const action0 = Util.createAction(Util.ACTION0, 'data-zero');
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      await store.dispatch(action0);
+      store.dispatch(action0);
+      store.dispatch(action0);
+      store.dispatch(action0);
       chai.expect(spy0.callCount).to.equal(3);
-    }
-  );
-
-  it(
-    'registers an array of actions to a single callback',
-    async () => {
-      middleman.on([Util.ACTION0, Util.ACTION1], spy0);
-      const action0 = Util.createAction(Util.ACTION0, 'data-zero');
-      const action1 = Util.createAction(Util.ACTION1, 'data-one');
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      await store.dispatch(action1);
-      await store.dispatch(action1);
-      chai.expect(spy0.callCount).to.equal(4);
-      chai.expect(spy0.firstCall.args[0]).to.deep.equal(action0);
-      chai.expect(spy0.lastCall.args[0]).to.deep.equal(action1);
-    }
-  );
-
-  it(
-    'registers an array of actions to an array of callbacks',
-    async () => {
-      middleman.on([Util.ACTION0, Util.ACTION1], [spy0, spy1]);
-      const action0 = Util.createAction(Util.ACTION0, 'data-zero');
-      const action1 = Util.createAction(Util.ACTION1, 'data-one');
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      await store.dispatch(action1);
-      await store.dispatch(action1);
-
-      chai.expect(spy0.callCount).to.equal(4);
-      chai.expect(spy0.firstCall.args[0]).to.deep.equal(action0);
-      chai.expect(spy0.lastCall.args[0]).to.deep.equal(action1);
-
-      chai.expect(spy1.callCount).to.equal(4);
-      chai.expect(spy1.firstCall.args[0]).to.deep.equal(action0);
-      chai.expect(spy1.lastCall.args[0]).to.deep.equal(action1);
     }
   );
 
   it(
     'registers callback only once',
-    async () => {
+    () => {
       middleman.once(Util.ACTION0, spy0);
       const action0 = Util.createAction(Util.ACTION0, 'data-one');
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      await store.dispatch(action0);
+      store.dispatch(action0);
+      store.dispatch(action0);
+      store.dispatch(action0);
       chai.expect(spy0.callCount).to.equal(1);
     }
   );
 
   it(
-    'registers an array of callbacks for an action only once',
-    async () => {
-      middleman.once(Util.ACTION0, [spy0, spy1]);
-      const action0 = Util.createAction(Util.ACTION0, 'data-zero');
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      chai.expect(spy0.callCount).to.equal(1);
-      chai.expect(spy1.callCount).to.equal(1);
-    }
-  );
-
-  it(
-    'deregisters action listener using \'off\'',
-    async () => {
-      middleman.on(Util.ACTION0, spy0);
-      const action0 = Util.createAction(Util.ACTION0, 'data-zero');
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      chai.expect(spy0.callCount).to.equal(3);
-      middleman.off(Util.ACTION0);
-      await store.dispatch(action0);
-      await store.dispatch(action0);
-      chai.expect(spy0.callCount).to.equal(3);
-    }
-  )
-
-  it(
-    'deregisters an array of action listeners using \'off\'',
-    async () => {
-      middleman.on([Util.ACTION0, Util.ACTION1], spy0);
+    'inserts a dispatch before registered action',
+    () => {
       const action0 = Util.createAction(Util.ACTION0, 'data-zero');
       const action1 = Util.createAction(Util.ACTION1, 'data-one');
-      await store.dispatch(action0);
-      await store.dispatch(action1);
-      chai.expect(spy0.callCount).to.equal(2);
-      middleman.off([Util.ACTION0, Util.ACTION1]);
-      await store.dispatch(action0);
-      await store.dispatch(action1);
-      chai.expect(spy0.callCount).to.equal(2);
+      middleman.on(Util.ACTION1, ({action, state, dispatch}) => {
+        dispatch(action0);
+        const data0 = store.getState().data;
+        chai.expect(data0).to.equal('data-zero');
+      });
+      store.dispatch(action1);
+      const data1 = store.getState().data;
+      chai.expect(data1).to.equal('data-one');
+    }
+  );
+
+  it(
+    'deregisters action listener using \'removeListener\'',
+    () => {
+      middleman.on(Util.ACTION0, spy0);
+      const action0 = Util.createAction(Util.ACTION0, 'data-zero');
+      store.dispatch(action0);
+      store.dispatch(action0);
+      store.dispatch(action0);
+      chai.expect(spy0.callCount).to.equal(3);
+      middleman.removeListener(Util.ACTION0, spy0);
+      store.dispatch(action0);
+      store.dispatch(action0);
+      chai.expect(spy0.callCount).to.equal(3);
     }
   )
 
-  it('removes all listeners', async function () {
+  it('removes all listeners', () => {
     middleman.on(Util.ACTION0, spy0);
     middleman.on(Util.ACTION1, spy1);
     const action0 = Util.createAction(Util.ACTION0, 'data-zero');
     const action1 = Util.createAction(Util.ACTION1, 'data-one');
-    await store.dispatch(action0);
-    await store.dispatch(action1);
+    store.dispatch(action0);
+    store.dispatch(action1);
     chai.expect(spy0.callCount).to.equal(1);
     chai.expect(spy1.callCount).to.equal(1);
-    middleman.removeAll();
-    await store.dispatch(action0);
-    await store.dispatch(action1);
+    middleman.removeAllListeners();
+    store.dispatch(action0);
+    store.dispatch(action1);
     chai.expect(spy0.callCount).to.equal(1);
     chai.expect(spy1.callCount).to.equal(1);
+  });
+
+  it('removes all listeners for a specified action', async function () {
+    middleman.on(Util.ACTION0, spy0);
+    middleman.on(Util.ACTION0, spy1);
+    middleman.on(Util.ACTION1, spy2);
+    const action0 = Util.createAction(Util.ACTION0, 'data-zero');
+    const action1 = Util.createAction(Util.ACTION1, 'data-one');
+    store.dispatch(action0);
+    store.dispatch(action1);
+    chai.expect(spy0.callCount).to.equal(1);
+    chai.expect(spy1.callCount).to.equal(1);
+    chai.expect(spy2.callCount).to.equal(1);
+    middleman.removeAllListeners(Util.ACTION0);
+    store.dispatch(action0);
+    store.dispatch(action1);
+    chai.expect(spy0.callCount).to.equal(1);
+    chai.expect(spy1.callCount).to.equal(1);
+    chai.expect(spy2.callCount).to.equal(2);
   });
 
 });

@@ -2,146 +2,83 @@ import { EventEmitter } from 'events';
 import { AnyAction, Dispatch, Middleware, MiddlewareAPI } from 'redux';
 
 /**
+ * Represents data provided to callback for registered actions
+ */
+export interface ICallbackData<S> {
+  action: AnyAction;
+  currentState: S;
+  dispatch: Dispatch;
+}
+
+/**
  * Represents callback registered by user for a specified action
  */
-export type ICallback<S> = (
-  action: AnyAction,
-  currState: S,
-  nextState: S
-) => any;
+export type ICallback<S> = (data: ICallbackData<S>) => void;
 
 /**
- * Represents internal store of callbacks by action type
+ * Represents internal store of registered actions. Used to improve
+ * performance by only performing necessary getState operations and emitting
+ * for registered actions
  */
-export interface ICallbackInterface<S> {
-  [key: string]: Array<ICallback<S>>;
+export interface IRegisteredActionStore {
+  [type: string]: number;
 }
 
 /**
- * Represents object parameter passed to emitter callback, where
- * action.type is then used to find and call the appropriate user callback(s).
- */
-export interface EventCallbackObj<S> {
-  action: AnyAction;
-  currState: S;
-  nextState: S;
-}
+ * ReduxMiddleman:
+ * Middleware that allows users to register callbacks for specified
+ * actions. The callbacks are passed the original action, the current
+ * state, and the redux dispatch method. Any dispatches that occur
+ * within the middleware will precede the intercepted action.
 
-/**
- * ReduxMiddleman class:
- * Intention is to sit inbetween dispatch and reducer and allow
- * users to register callbacks for specified actions. The callbacks
- * are passed the original action, the current state, and the next
- * state that resulted from the action.
+ * Current design extends the EventEmitter library allowing users to
+ * register and deregister small pieces of middleware on the fly.
  */
-export class ReduxMiddleman<S> {
+export class ReduxMiddleman<S> extends EventEmitter {
 
   public readonly middleware: Middleware;
-  private readonly emitter: EventEmitter;
-  private callbacks: ICallbackInterface<S>;
+  private registeredActions: IRegisteredActionStore;
 
   constructor() {
-    this.callbacks = {};
-    this.emitter = new EventEmitter();
+    super();
+    this.registeredActions = {};
+    this.setUpInternalListeners();
     this.middleware = this.createMiddleware();
   }
 
-  public on = (
-    type: string | string[],
-    callback: ICallback<S> | Array<ICallback<S>>
-  ): void => {
+  private setUpInternalListeners = () => {
 
-    if (Array.isArray(type)) {
-      return this.onMult(type, callback);
-    }
+    // register removeLister first so we don't add it to our
+    // list of tracked actions
+    this.on('removeListener', (evt: string, listener: ICallback<S>) => {
+      --this.registeredActions[evt];
+      if (this.registeredActions[evt] <= 0) {
+        delete this.registeredActions[evt];
+      }
+    });
 
-    if (!this.callbacks[type]) {
-      this.callbacks[type] = [];
-    }
+    this.on('newListener', (evt: string, listener: ICallback<S>) => {
+      if (!this.registeredActions[evt]) {
+        this.registeredActions[evt] = 1;
+      } else {
+        ++this.registeredActions[evt];
+      }
+    });
 
-    if (Array.isArray(callback)) {
-      this.callbacks[type] = this.callbacks[type].concat(callback);
-    } else {
-      this.callbacks[type].push(callback);
-    }
-
-    this.listen(type);
-  }
-
-  public once = (
-    type: string,
-    callback: ICallback<S> | Array<ICallback<S>>
-  ): void => {
-
-    if (!this.callbacks[type]) {
-      this.callbacks[type] = [];
-    }
-
-    if (Array.isArray(callback)) {
-      this.callbacks[type] = this.callbacks[type].concat(callback);
-    } else {
-      this.callbacks[type].push(callback);
-    }
-
-    this.listen(type, true);
-  }
-
-  public off = (type: string | string[]): void => {
-    if (Array.isArray(type)) {
-      return this.offMult(type);
-    }
-    delete this.callbacks[type];
-    this.emitter.removeListener(type, this.emitterCallback);
-  }
-
-  public removeAll = (): void => {
-    this.callbacks = {};
-    this.emitter.removeAllListeners();
   }
 
   private createMiddleware = (): Middleware => {
 
-    return (store: MiddlewareAPI) => (next: Dispatch<AnyAction>) =>
+    return (
+      ({getState, dispatch}: MiddlewareAPI) => (next: Dispatch<AnyAction>) =>
       (action: AnyAction) => {
-        if (!this.callbacks[action.type]) { return next(action); }
-        const currState = store.getState();
-        const nextAction = next(action);
-        const nextState = store.getState();
-        this.emitter.emit(action.type, {action, currState, nextState});
-        return nextAction;
-      };
-  }
-
-  private onMult = (
-    types: string[],
-    callback: ICallback<S> | Array<ICallback<S>>
-  ): void => {
-    for (const type of types) {
-      this.on(type, callback);
-    }
-  }
-
-  private offMult = (types: string[]): void => {
-    for (const type of types) {
-      this.off(type);
-    }
-  }
-
-  private emitterCallback = (
-    once: boolean,
-    data: EventCallbackObj<S>
-  ): void  => {
-    const type = data.action.type;
-    this.callbacks[type].forEach((callback: ICallback<S>) => {
-      callback(data.action, data.currState, data.nextState);
-      if (once) { delete this.callbacks[type]; }
-    });
-  }
-
-  private listen = (type: string, once?: boolean): void => {
-    once = once ? true : false;
-    const listen = once ? 'once' : 'on';
-    this.emitter[listen](type, this.emitterCallback.bind(this, once));
+        if (!this.registeredActions[action.type]) { return next(action); }
+        const currentState: S = getState();
+        const callbackData: ICallbackData<S> = {action, currentState, dispatch};
+        this.emit(action.type, callbackData);
+        return next(action);
+      }
+    );
   }
 }
 

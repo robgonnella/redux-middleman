@@ -1,8 +1,6 @@
 {
     "extends": "./configs/base",
-    "compilerOptions": {
-        "outDir": "lib"
-    },
+    "compilerOptions": { "outDir": "lib" },
     "exclude": [
         "node_modules",
         "test"
