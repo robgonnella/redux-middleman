@@ -16,7 +16,7 @@ export interface State {
   data: string;
 }
 
-export const initialState = {
+export const initialState: State = {
   data: 'this is some data'
 };
 

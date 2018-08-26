@@ -11,7 +11,7 @@ This module allows you insert dispatches prior to the intercepted action.
 It also allows you to register and deregister your listeners on the fly, in
 a sense adding and removing smaller pieces of middleware at any time.
 
-All methods available on a node [EventEmitter](EventEmitter)
+All methods available on a node [EventEmitter]
 are also available on a ReduxMiddleman instance.
 
 ### Installation
@@ -28,7 +28,7 @@ are also available on a ReduxMiddleman instance.
 
 ```javascript
 // EXAMPLE USAGE
-
+import { ReduxMiddleman } from 'redux-middleman';
 const middleman = new ReduxMiddleman();
 
 // Register callback
@@ -66,18 +66,18 @@ middleman.removeAllListeners('PURCHASE-PRODUCT');
 // Apply middleware to your store
 const store = createStore(rootReducer, applyMiddleware(middleman.middleware));
 
-```
+``` 
 
 ### Methods
-Use any method listed [here](EventEmitter) with ReduxMiddleman
+Use any method listed [here][EventEmitter] with ReduxMiddleman
 
 e.g.
 ```
-const middleman = new ReduxMiddleMan();
+const middleman = new ReduxMiddleman();
 middleman.on('event', callback);
 middleman.once('event', callback);
 middleman.removeListener('event', callback);
 middleman.removeAllListeners();
 ```
 
-[EventEmiiter]: https://nodejs.org/api/events.html
+[EventEmitter]: https://nodejs.org/api/events.html

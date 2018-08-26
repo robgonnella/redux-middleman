@@ -48,6 +48,17 @@ describe('Redux Middleman', function() {
   );
 
   it(
+    'does not register same callback to same action more than once',
+    () => {
+      middleman.on(Util.ACTION0, spy0);
+      middleman.on(Util.ACTION0, spy0);
+      const action0 = Util.createAction(Util.ACTION0, 'data-zero');
+      store.dispatch(action0);
+      chai.expect(spy0.callCount).to.equal(1);
+    }
+  );
+
+  it(
     'calls registered callback multiple times',
     () => {
       middleman.on(Util.ACTION0, spy0);
