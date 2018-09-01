@@ -67,10 +67,12 @@
   },
   "devDependencies": {
     "@types/chai": "^4.1.4",
+    "@types/d3-queue": "^3.0.6",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.9.2",
     "@types/sinon": "^4.3.3",
     "chai": "^4.1.2",
+    "logplease": "^1.2.15",
     "mocha": "^5.2.0",
     "nyc": "^11.9.0",
     "redux": "^4.0.0",
@@ -81,5 +83,7 @@
     "typescript": "^3.0.1",
     "uglify-js": "^3.4.8"
   },
-  "dependencies": {}
+  "dependencies": {
+    "d3-queue": "^3.0.7"
+  }
 }
